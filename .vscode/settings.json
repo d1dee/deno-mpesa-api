@@ -1,0 +1,26 @@
+{
+    "deno.enable": true,
+    "deno.lint": true,
+    "editor.defaultFormatter": "denoland.vscode-deno",
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "denoland.vscode-deno"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "denoland.vscode-deno"
+    },
+    "[javascriptreact]": {
+        "editor.defaultFormatter": "denoland.vscode-deno"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "denoland.vscode-deno"
+    },
+    "css.customData": [".vscode/tailwind.json"],
+    "[rosScript]": {
+        "editor.defaultFormatter": "denoland.vscode-deno"
+    },
+    "prettier.configPath": "/home/d/Projects/.prettierrc",
+    "codeQL.createQuery.qlPackLocation": "/home/d/Projects/opennds-server",
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    }
+}
