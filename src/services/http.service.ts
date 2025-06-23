@@ -28,13 +28,12 @@ export class HttpService {
                     ...res,
                 };
             }
-        } catch (err: any) {
-            console.error(err?.message);
-            throw new Error("GET response could not be parsed.", { cause: response });
+        } catch (_: unknown) {
+            return new Error("GET response could not be parsed.", { cause: response });
         }
     }
 
-    async post(path: string, headers: Headers, body: string) {
+    async post(path: string, headers: Headers, body: string): Promise<unknown | Error> {
         let response;
         try {
             response = await fetch(`${this.baseUrl}${path}`, {
@@ -42,23 +41,14 @@ export class HttpService {
                 headers,
                 body: body,
             });
-            if (response.ok) {
-                return {
-                    success: response.ok,
-                    status: response.status,
-                    ...(await response.json()),
-                };
-            } else {
-                const res = await response.json();
-                return {
-                    success: response.ok,
-                    status: response.status,
-                    ...res,
-                };
-            }
-        } catch (err: any) {
-            console.error(err?.message);
-            throw new Error("POST response could not be parsed.", { cause: response });
+
+            return {
+                success: response.ok,
+                status: response.status,
+                ...(await response.json()),
+            };
+        } catch (_: unknown) {
+            return new Error("POST response could not be parsed.", { cause: response });
         }
     }
 }

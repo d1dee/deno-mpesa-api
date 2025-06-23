@@ -1,5 +1,5 @@
 {
-  "version": "4",
+  "version": "5",
   "specifiers": {
     "jsr:@std/path@*": "1.0.8",
     "npm:@types/node@*": "22.12.0"
@@ -19,5 +19,18 @@
     "undici-types@6.20.0": {
       "integrity": "sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg=="
     }
+  },
+  "redirects": {
+    "https://esm.sh/dayjs": "https://esm.sh/dayjs@1.11.13",
+    "https://esm.sh/dayjs/plugin/timezone": "https://esm.sh/dayjs@1.11.13/plugin/timezone",
+    "https://esm.sh/dayjs/plugin/utc": "https://esm.sh/dayjs@1.11.13/plugin/utc"
+  },
+  "remote": {
+    "https://esm.sh/dayjs@1.11.13": "89c34b8b3f7b970708114b4d264c9430c30eb0c2eab1419410c77ffefa18fe2c",
+    "https://esm.sh/dayjs@1.11.13/denonext/dayjs.mjs": "a6d8258bec464149ab2c9ae26e4bd3736897828586b03f8fea45403080bf8a80",
+    "https://esm.sh/dayjs@1.11.13/denonext/plugin/timezone.mjs": "94d48607684cc8423f815fee4e72bf334c801cdf52d79caa00481a7e83c345f4",
+    "https://esm.sh/dayjs@1.11.13/denonext/plugin/utc.mjs": "7e89223a0933377aaa5fd52d97f116ed3d48c93d5b2ed305d86bde9e496b3e12",
+    "https://esm.sh/dayjs@1.11.13/plugin/timezone": "cfe2b0eec9855373de8fbc92d3503d25930ab3156522482e55f7a66bb3d4fb32",
+    "https://esm.sh/dayjs@1.11.13/plugin/utc": "2e41a0673e6e7c7c962983f1680911ef6feb27ded6007bc7705787ac1b2637b7"
   }
 }

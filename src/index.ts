@@ -18,6 +18,9 @@ import {
     TransactionStatusResponseInterface,
 } from "../@types/types.d.ts";
 
+import dayjs from "https://esm.sh/dayjs";
+import timezone from "https://esm.sh/dayjs/plugin/timezone";
+import utc from "https://esm.sh/dayjs/plugin/utc";
 import { resolve } from "jsr:@std/path";
 import { Buffer } from "node:buffer";
 import { RSA_PKCS1_PADDING } from "node:constants";
@@ -26,94 +29,86 @@ import { join } from "node:path";
 import { routes } from "./routes.ts";
 import { HttpService } from "./services/http.service.ts";
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
 const { paths } = routes;
 
 export class MpesaApi {
-    clientKey: string;
-    clientSecret: string;
+    consumerKey: string;
+    consumerSecret: string;
     baseUrl: string;
     http: HttpService;
     environment: string;
     securityCredential?: string;
 
     constructor({
-        clientKey,
-        clientSecret,
-        securityCredential,
-        initiatorPassword,
+        consumerKey,
+        consumerSecret,
     }: CredentialsInterface, environment: "production" | "sandbox") {
-        this.clientKey = clientKey;
-        this.clientSecret = clientSecret;
+        this.consumerKey = consumerKey;
+        this.consumerSecret = consumerSecret;
         this.environment = environment;
         this.baseUrl = environment === "production" ? routes.production : routes.sandbox;
 
-        if (!clientKey || !clientSecret) {
+        if (!consumerKey || !consumerSecret) {
             throw new Error(
-                "clientKey and clientSecret can never be undefined ",
+                "consumerKey and consumerSecret can never be undefined ",
             );
         }
         this.http = new HttpService(this.baseUrl);
-
-        if (!securityCredential && !initiatorPassword && environment === "production") {
-            console.warn(
-                new Error(
-                    "You must provide either the security credential or initiator password. Both cannot be null",
-                ),
-            );
-        }
-        this.generateSecurityCredential;
     }
 
     private generateSecurityCredential(
-        password: string,
+        initiatorPassword: string,
         certificatePath?: string,
     ) {
         let certificate: string;
-        const decoder = new TextDecoder();
 
         if (certificatePath != null) {
-            const certificateBuffer = Deno.readFileSync(certificatePath);
-
-            certificate = decoder.decode(certificateBuffer);
+            certificate = Deno.readTextFileSync(certificatePath);
         } else {
-            const certificateBuffer = Deno.readFileSync(
+            certificate = Deno.readTextFileSync(
                 resolve(
                     Deno.cwd(),
                     this.environment === "production"
-                        ? join("src", "keys", "production-cert.cer")
-                        : join("src", "keys", "sandbox-cert.cer"),
+                        ? join("keys", "ProductionCertificate.pem")
+                        : join("keys", "SandboxCertificate.pem"),
                 ),
             );
-
-            certificate = decoder.decode(certificateBuffer);
         }
 
-        this.securityCredential = publicEncrypt(
+        const encryptedInitiatorPassword = publicEncrypt(
             {
                 key: certificate,
                 padding: RSA_PKCS1_PADDING,
             },
-            Buffer.from(password),
-        ).toString("base64");
-        return this.securityCredential;
+            Buffer.from(initiatorPassword),
+        );
+
+        this.securityCredential = btoa(
+            encryptedInitiatorPassword.reduce(
+                (acc, current) => acc + String.fromCharCode(current),
+                "",
+            ),
+        );
     }
 
     // https://developer.safaricom.co.ke/APIs/Authorization
-    async authenticate(): Promise<[T_AuthResponse, Headers]> {
+    async authenticate(): Promise<[T_AuthResponse, Headers] | Error> {
         const headers = new Headers();
         headers.append(
             "Authorization",
-            `Basic ${Buffer.from(this.clientKey + ":" + this.clientSecret).toString("base64")}`,
+            `Basic ${Buffer.from(this.consumerKey + ":" + this.consumerSecret).toString("base64")}`,
         );
         const tokenRes = await this.http.get(paths.auth, headers) as T_AuthResponse;
-        if (tokenRes.errorCode) throw new Error(tokenRes.errorMessage, { cause: tokenRes });
+        if (tokenRes.errorCode) return new Error(tokenRes.errorMessage, { cause: tokenRes });
 
         if (!tokenRes.access_token) {
-            throw new Error("failed to get access token form server", { cause: tokenRes });
+            return new Error("failed to get access token form server", { cause: tokenRes });
         }
         const resHeaders = new Headers();
-        headers.append("Authorization", "Bearer " + tokenRes.access_token);
-        headers.append("Content-Type", "application/json");
+        resHeaders.append("Authorization", "Bearer " + tokenRes.access_token);
+        resHeaders.append("Content-Type", "application/json");
 
         return [tokenRes, resHeaders];
     }
@@ -122,7 +117,7 @@ export class MpesaApi {
      * @name Lipa Na Mpesa Online
      * @description Lipa na M-Pesa Online Payment API is used to initiate a M-Pesa transaction on behalf of a customer using STK Push.
      * This is the same technique mySafaricom App uses whenever the app is used to make payments.
-     * @see {@link https://developer.safaricom.co.ke/APIs/MpesaExpressSimulate }
+     * @see https://developer.safaricom.co.ke/APIs/MpesaExpressSimulate
      */
     async lipaNaMpesaOnline({
         BusinessShortCode,
@@ -135,13 +130,14 @@ export class MpesaApi {
         AccountReference,
         CallBackURL,
         PhoneNumber,
-    }: StkPushInterface): Promise<StkPushResponse> {
-        const Timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, -3);
+    }: StkPushInterface) {
+        const Timestamp = dayjs().tz("Africa/Nairobi").format("YYYYMMDDHHmmss");
 
         const Password = Buffer.from(BusinessShortCode + passKey + Timestamp).toString("base64");
 
-        const [, headers] = await this.authenticate();
-        if (!headers) throw new Error("Auth failed");
+        const authenticateResults = await this.authenticate();
+        if (authenticateResults instanceof Error) return new Error("Auth failed");
+        const [, headers] = authenticateResults;
 
         const body = JSON.stringify({
             "BusinessShortCode": BusinessShortCode,
@@ -157,7 +153,9 @@ export class MpesaApi {
             "TransactionDesc": TransactionDesc,
         });
 
-        return await this.http.post(routes.paths.stkpush, headers, body);
+        return await this.http.post(routes.paths.STKPush, headers, body) as Promise<
+            StkPushResponse | Error
+        >;
     }
 
     /**
@@ -175,20 +173,19 @@ export class MpesaApi {
         BusinessShortCode,
         passKey,
         CheckoutRequestID,
-    }: StkQueryInterface): Promise<StkQueryResponseInterface> {
-        const Timestamp = new Date()
-            .toISOString()
-            .replace(/[^0-9]/g, "")
-            .slice(0, -3);
+    }: StkQueryInterface) {
+        const Timestamp = dayjs().tz("Africa/Nairobi").format("YYYYMMDDHHmmss");
 
         const Password = Buffer.from(
             BusinessShortCode + passKey + Timestamp,
         ).toString("base64");
 
-        const [, headers] = await this.authenticate();
+        const authenticateResults = await this.authenticate();
+        if (authenticateResults instanceof Error) return new Error("Auth failed");
+        const [, headers] = authenticateResults;
 
         const response = await this.http.post(
-            routes.paths.stkquery,
+            routes.paths.STKPushQuery,
             headers,
             JSON.stringify({
                 BusinessShortCode,
@@ -198,30 +195,34 @@ export class MpesaApi {
             }),
         );
 
-        return response;
+        return response as Promise<
+            StkQueryResponseInterface & { success: boolean; status: number } | Error
+        >;
     }
 
     /**
      * Reversal Request
-     *
      * @name ReversalRequest
-     *
      * @description Transaction Reversal API reverses a M-Pesa transaction.
-     * @see {@link https://developer.safaricom.co.ke/reversal/apis/post/request| Reversal Request}
+     * @see https://developer.safaricom.co.ke/reversal/apis/post/request/Reversal Request
      */
-    public async reversal({
+    public async reversal(initiatorPassword: string, {
         Initiator,
         CommandID,
         TransactionID,
         Amount,
         ReceiverParty,
-        RecieverIdentifierType,
+        ReceiverIdentifierType,
         ResultURL,
         QueueTimeOutURL,
         Remarks,
         Occasion,
-    }: ReversalInterface): Promise<ReversalResponseInterface> {
-        const [, headers] = await this.authenticate();
+    }: ReversalInterface) {
+        const authenticateResults = await this.authenticate();
+        if (authenticateResults instanceof Error) return new Error("Auth failed");
+        const [, headers] = authenticateResults;
+
+        this.generateSecurityCredential(initiatorPassword);
 
         return await this.http.post(
             routes.paths.reversal,
@@ -233,13 +234,13 @@ export class MpesaApi {
                 TransactionID,
                 Amount,
                 ReceiverParty,
-                RecieverIdentifierType: RecieverIdentifierType ?? "4",
+                ReceiverIdentifierType: ReceiverIdentifierType ?? "4",
                 ResultURL,
                 QueueTimeOutURL,
                 Remarks: Remarks ?? "Transaction Reversal",
                 Occasion: Occasion ?? "TransactionReversal",
             }),
-        );
+        ) as Promise<ReversalResponseInterface | Error>;
     }
 
     /**
@@ -273,8 +274,10 @@ export class MpesaApi {
         ResponseType,
         ConfirmationURL,
         ValidationURL,
-    }: C2BRegisterInterface): Promise<C2BRegisterResponseInterface> {
-        const [, headers] = await this.authenticate();
+    }: C2BRegisterInterface) {
+        const authenticateResults = await this.authenticate();
+        if (authenticateResults instanceof Error) return new Error("Auth failed");
+        const [, headers] = authenticateResults;
 
         const data = await this.http.post(
             routes.paths.c2bregister,
@@ -282,7 +285,7 @@ export class MpesaApi {
             JSON.stringify({ ShortCode, ResponseType, ConfirmationURL, ValidationURL }),
         );
 
-        return data;
+        return data as Promise<C2BRegisterResponseInterface | Error>;
     }
 
     /**
@@ -303,7 +306,7 @@ export class MpesaApi {
      * @param {string} data.ResultURL The end-point that receives a successful transaction.
      * @returns {Promise} Returns a Promise with data from Safaricom if successful
      */
-    public async accountBalance({
+    public async accountBalance(initiatorPassword: string, {
         Initiator,
         CommandID,
         PartyA,
@@ -311,8 +314,12 @@ export class MpesaApi {
         Remarks,
         QueueTimeOutURL,
         ResultURL,
-    }: AccountBalanceInterface): Promise<AccountBalanceResponseInterface> {
-        const [, headers] = await this.authenticate();
+    }: AccountBalanceInterface) {
+        const authenticateResults = await this.authenticate();
+        if (authenticateResults instanceof Error) return new Error("Auth failed");
+        const [, headers] = authenticateResults;
+
+        this.generateSecurityCredential(initiatorPassword);
 
         const data = await this.http.post(
             routes.paths.accountbalance,
@@ -329,7 +336,7 @@ export class MpesaApi {
             }),
         );
 
-        return data;
+        return data as Promise<AccountBalanceResponseInterface | Error>;
     }
 
     /**
@@ -352,7 +359,7 @@ export class MpesaApi {
      * @param  {string} data.Occasion Optional
      * @returns {Promise} Returns a Promise with data from Safaricom if successful Promise
      */
-    public async transactionStatus({
+    public async transactionStatus(initiatorPassword: string, {
         Initiator,
         TransactionID,
         PartyA,
@@ -361,29 +368,31 @@ export class MpesaApi {
         QueueTimeOutURL,
         Remarks,
         Occasion,
-    }: TransactionStatusInterface): Promise<TransactionStatusResponseInterface> {
-        const [, headers] = await this.authenticate();
+    }: TransactionStatusInterface) {
+        const authenticateResults = await this.authenticate();
+        if (authenticateResults instanceof Error) return new Error("Auth failed");
+        const [, headers] = authenticateResults;
+
+        this.generateSecurityCredential(initiatorPassword);
 
         const response = await this.http.post(
             routes.paths.transactionstatus,
             headers,
-            JSON.stringify(
-                {
-                    Initiator,
-                    SecurityCredential: this.securityCredential,
-                    "Command ID": "TransactionStatusQuery",
-                    "Transaction ID": TransactionID,
-                    PartyA,
-                    IdentifierType,
-                    ResultURL,
-                    QueueTimeOutURL,
-                    Remarks: Remarks ?? "Transaction Status",
-                    Occasion: Occasion ?? "TransactionStatus",
-                },
-            ),
+            JSON.stringify({
+                "Initiator": Initiator,
+                "SecurityCredential": this.securityCredential,
+                "CommandID": "TransactionStatusQuery",
+                "TransactionID": TransactionID,
+                "PartyA": PartyA,
+                "IdentifierType": IdentifierType,
+                "ResultURL": ResultURL,
+                "QueueTimeOutURL": QueueTimeOutURL,
+                "Remarks": Remarks || "Okay",
+                "Occassion": Occasion || "Transaction status query.",
+            }),
         );
 
-        return response;
+        return response as Promise<TransactionStatusResponseInterface | Error>;
     }
 
     /**
@@ -405,7 +414,7 @@ export class MpesaApi {
      * @param  {string} data.Occasion Optional
      * @returns {Promise} Returns a Promise with data from Safaricom if successful
      */
-    public async b2c({
+    public async b2c(initiatorPassword: string, {
         OriginatorConversationID,
         InitiatorName,
         CommandID,
@@ -416,8 +425,12 @@ export class MpesaApi {
         QueueTimeOutURL,
         ResultURL,
         Occasion,
-    }: B2CInterface): Promise<B2CResponseInterface> {
-        const [, headers] = await this.authenticate();
+    }: B2CInterface) {
+        const authenticateResults = await this.authenticate();
+        if (authenticateResults instanceof Error) return new Error("Auth failed");
+        const [, headers] = authenticateResults;
+
+        this.generateSecurityCredential(initiatorPassword);
 
         const response = await this.http.post(
             routes.paths.b2c,
@@ -437,23 +450,24 @@ export class MpesaApi {
             }),
         );
 
-        return response;
+        return response as Promise<B2CResponseInterface | Error>;
     }
 
-    public async b2b(
-        {
-            Initiator,
-            Amount,
-            PartyA,
-            PartyB,
-            AccountReference,
-            Remarks,
-            QueueTimeOutURL,
-            ResultURL,
-        }: B2BInterface,
-    ) {
-        const [, headers] = await this.authenticate();
+    public async b2b(initiatorPassword: string, {
+        Initiator,
+        Amount,
+        PartyA,
+        PartyB,
+        AccountReference,
+        Remarks,
+        QueueTimeOutURL,
+        ResultURL,
+    }: B2BInterface) {
+        const authenticateResults = await this.authenticate();
+        if (authenticateResults instanceof Error) return new Error("Auth failed");
+        const [, headers] = authenticateResults;
 
+        this.generateSecurityCredential(initiatorPassword);
         const response = await this.http.post(
             routes.paths.b2c,
             headers,
