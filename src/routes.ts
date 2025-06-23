@@ -10,7 +10,22 @@ export const routes = {
         accountbalance: "/mpesa/accountbalance/v1/query",
         transactionstatus: "/mpesa/transactionstatus/v1/query",
         reversal: "/mpesa/reversal/v1/request",
-        stkpush: "/mpesa/stkpush/v1/processrequest",
-        stkquery: "/mpesa/stkpushquery/v1/query",
+        STKPush: "/mpesa/stkpush/v1/processrequest",
+        checkIdentityRequest: "/mpesa/checkidentity/v1/processrequest",
+        B2C: "/mpesa/b2c/v3/paymentrequest",
+        STKPushQuery: "/mpesa/stkpushquery/v1/query",
+        //Bill Manager Generic API
+        "Opt-In": "/v1/billmanager-invoice/v1/billmanager-invoice/optin",
+        "Single-Invoicing": "/v1/billmanager-invoice/v1/billmanager-invoice/single-invoicing",
+        "Bulk-Invoicing": "/v1/billmanager-invoice/v1/billmanager-invoice/bulk-invoicing",
+        "Reconciliation": "/v1/billmanager-invoice/v1/billmanager-invoice/reconciliation",
+        "Cancel-Single-Invoicing":
+            "/v1/billmanager-invoice/v1/billmanager-invoice/cancel-single-invoice",
+        "Cancel-Bulk-Invoicing":
+            "/v1/billmanager-invoice/v1/billmanager-invoice/cancel-bulk-invoice",
+        "Update-Onboarding-Details":
+            "/v1/billmanager-invoice/v1/billmanager-invoice/change-optin-details",
+        "Update-Single-Invoicing": "/v1/billmanager-invoice/v1/billmanager-invoice/change-invoice",
+        "Update-Bulk-Invoicing": "/v1/billmanager-invoice/v1/billmanager-invoice/change-invoices",
     },
 };
