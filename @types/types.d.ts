@@ -41,10 +41,8 @@ interface _CredentialsInterface {
 }
 
 export type CredentialsInterface =
-
     | (_CredentialsInterface & { initiatorPassword: string })
     | (_CredentialsInterface & { securityCredential: string });
-
 
 export interface AccountBalanceInterface {
     /** This is the credential/username used to authenticate the transaction request.*/
@@ -465,7 +463,6 @@ export interface TransactionStatusResponseInterface {
 }
 
 export type CommandID =
-
     | 'SalaryPayment'
     | 'BusinessPayment'
     | 'PromotionPayment'
@@ -587,7 +584,6 @@ type SuccessfulStkCallback = {
                 Value: string | number;
             },
         ];
-
     };
 };
 type UnsuccessfulStkCallback = {
@@ -598,7 +594,7 @@ type UnsuccessfulStkCallback = {
     /* https://developer.safaricom.co.ke/APIs/MpesaExpressSimulate for full error descriptions.*/
     ResultCode: number;
     ResultDesc: string;
-    CallbackMetadata: undefined:
+    CallbackMetadata: undefined;
 };
 
 export type MpesaExpressCallback = {
@@ -641,7 +637,6 @@ type SuccessResults = { [K in Exclude<ResultKeys, 'ResultCode'>]: string } & {
         ResultParameter: Array<{ Key: SuccessKeys; Value: string }>;
     };
 };
-
 
 export type TransactionStatusQueryCallback = {
     Result: BasicResults | SuccessResults;
