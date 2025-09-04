@@ -41,8 +41,10 @@ interface _CredentialsInterface {
 }
 
 export type CredentialsInterface =
+
     | (_CredentialsInterface & { initiatorPassword: string })
     | (_CredentialsInterface & { securityCredential: string });
+
 
 export interface AccountBalanceInterface {
     /** This is the credential/username used to authenticate the transaction request.*/
@@ -207,7 +209,9 @@ export interface ReversalInterface {
      * `2` - Till Number
      * `4` - Shortcode
      */
+
     ReceiverIdentifierType?: '1' | '2' | '4';
+
     /** Comments that are sent along with the transaction.*/
     Remarks?: string;
     /**Sequence of characters up to 100.*/
@@ -268,6 +272,7 @@ export type ResponseType = 'Completed' | 'Cancelled';
 export interface C2BRegisterResponseInterface {
     /** This is a global unique identifier for the transaction request returned by the API proxy upon successful request submission..*/
     OriginatorConversationID: string;
+
     /** It indicates whether Mobile Money accepts the request or not..*/
     ResponseCode: string;
     /** This is the status of the request..*/
@@ -460,6 +465,7 @@ export interface TransactionStatusResponseInterface {
 }
 
 export type CommandID =
+
     | 'SalaryPayment'
     | 'BusinessPayment'
     | 'PromotionPayment'
@@ -581,6 +587,7 @@ type SuccessfulStkCallback = {
                 Value: string | number;
             },
         ];
+
     };
 };
 type UnsuccessfulStkCallback = {
@@ -591,7 +598,7 @@ type UnsuccessfulStkCallback = {
     /* https://developer.safaricom.co.ke/APIs/MpesaExpressSimulate for full error descriptions.*/
     ResultCode: number;
     ResultDesc: string;
-    CallbackMetadata: undefined;
+    CallbackMetadata: undefined:
 };
 
 export type MpesaExpressCallback = {
@@ -634,6 +641,7 @@ type SuccessResults = { [K in Exclude<ResultKeys, 'ResultCode'>]: string } & {
         ResultParameter: Array<{ Key: SuccessKeys; Value: string }>;
     };
 };
+
 
 export type TransactionStatusQueryCallback = {
     Result: BasicResults | SuccessResults;
